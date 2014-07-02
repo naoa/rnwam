@@ -1,0 +1,34 @@
+dnl test for configure.in
+
+AC_INIT(rnwam.c)
+
+AC_ARG_PROGRAM
+
+AC_PATH_PROG(PROG_RUBY, ruby19)
+
+AC_ARG_WITH(icu-config,
+[  --with-icu-config=PATH       set icu-config location search path],
+[icuconfig=$withval], [icuconfig="/usr/local/bin/icu-config"])
+
+AC_ARG_WITH(nwam-prefix,
+[  --with-nwam-prefix=PATH       set nwam prefix],
+[nwamprefix=$withval], [nwamprefix="/usr/local"])
+
+AC_ARG_WITH(nwam-datadir,
+[  --with-nwam-datadir=PATH       set nwam datadir],
+[nwamdatadir=$withval], [nwamdatadir="/tmp"])
+
+AC_SUBST(ICUCONFIG)dnl
+ICUCONFIG=$icuconfig
+
+AC_SUBST(NWAMPREFIX)dnl
+NWAMPREFIX=$nwamprefix
+
+AC_SUBST(NWAMDATADIR)dnl
+NWAMDATADIR=$nwamdatadir
+
+AC_OUTPUT(extconf.rb
+	cnf
+	sample.rb)
+
+chmod +x cnf sample.rb

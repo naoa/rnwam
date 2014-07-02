@@ -1,0 +1,432 @@
+1. 型
+
+本節では、
+Rubyモジュールで用いられるデータ構造について解説する。
+Ruby モジュールではクラス、
+配列を組み合わせて、
+C APIの構造体に相当するデータ構造を表現している。
+
+図1に、
+Rubyモジュールで用いられる主要なデータ型を、
+簡略化した記法により示す。
+
+--
+
+(* 特徴ベクトルの要素 *)
+class WAM_XR_ELEM
+	fixint @id
+	fixint @freq
+end
+
+(* 特徴ベクトル *)
+class WAM_XR_VEC
+	fixint @elem_num
+	fixint @freq_sum
+	array of WAM_XR_ELEM @elems
+end
+
+(* 連想計算の入出力用ベクトルの要素 *)
+class WAM_SYMINFO_ELEM
+	WAM_XR_VEC @v
+	string @name
+	fixint @id
+	fixint @TF
+	fixint @TF_d
+	fixint @DF
+	fixint @DF_d
+	float @weight
+end
+
+(* 連想計算の入出力用ベクトル *)
+syminfo_l = array of WAM_SYMINFO_ELEM
+
+(* ブール式の要素 *)
+class WAM_BXU_ELEM
+	string @name
+	fixint @id
+	fixint @type
+end
+
+(* 全文一致フィルタの要素 *)
+class WAM_SIMPLE_QUERY
+	string @pattern
+	boolean @negativep
+	string @segments
+	string @options
+end
+
+(* 全文一致フィルタの項 *)
+con_query = array of WAM_SIMPLE_QUERY
+
+(* 全文一致フィルタの式 *)
+fss_query = array of con_query
+
+(* WAMのハンドル *)
+WAM <hidden structure>
+
+(* 行、列を指定する型 *)
+dir_t = integer
+	WAM::ROW		(* 行 *)
+	WAM::COL		(* 列 *)
+
+(* 類似度を指定する型 *)
+weight_type = integer
+
+(* クラスタリングのタイプを指定する型 *)
+cs_type = integer
+
+図1
+
+--
+
+Ruby モジュールでは、
+特徴ベクトルを表現するデータ構造は、
+WAM_XR_VEC 型である。
+ベクトルの本体は elems であり、
+これは、WAM_XR_ELEMの配列である。
+また、
+elem_numがベクトルの長さ、
+freq_sumはベクトルのfreq要素の合計である。
+
+特徴ベクトルの要素の型である WAM_XR_ELEM 型は、
+id、freq の 2 つのインスタンス変数を持つクラスである。
+id、freq それぞれは、その単語/記事のidである。
+
+連想計算の入出力では、array of WAM_XR_ELEMではなく、
+array of WAM_SYMINFO_ELEM 型が用いられる。
+WAM_SYMINFO_ELEM型は、
+id、v、TF、TF_d、DF、DF_d、weight、name の 
+8 つのインスタンス変数を持つ連想配列である。
+id、name、freqは、WAM_XR_VECと同じ意味である。
+v、TF、TF_d、DF、DF_d、weight は WAM_SYMINFO_ELEM 型の同名のメンバに対応する。
+vは、
+idの特徴ベクトルであり、任意のものが指定可能である(WAMに現れなくともよい)。
+入力において、
+v、name、idが同時に指定された場合、
+v、name、idの順に優先して扱われる(不一致はエラーではない)。
+TF_dは、
+入力では、問い合わせのベクトルでの頻度、
+出力では、問い合わせにおける頻度の合計である。
+TF、DF、DF_d、weightはそれぞれ
+全文書中での頻度、ドキュメント頻度、問い合わせにおけるドキュメント頻度、
+類似度(通常は連想計算の結果得られた値、入力として要求する類似度もある)である。
+
+WAM_BXU_ELEM は name、id、typeの 3 つのインスタンス変数を持つクラスである。
+全て排他的であり、同時に二つ以上が指定された場合、
+name、id、typeの順に優先して取り扱われる
+(複数指定してもエラーチェックは行われない)。
+ブール式の型は、
+WAM_BXU_ELEMの配列であり、
+これは中置形式のブール式のトークンを直列に並べたものである。
+
+simple_query は pattern、negativep、segments、options の 
+4 つのインスタンス変数を持つクラスである。
+これらは、全て必須である。
+patternは、全文インデクス部分で探すべき文字列である。
+segmentsは、patternを探すべきセグメントであり、0の時は全てを意味する。
+optionsは、patternを探すときの(曖昧検索の条件などの)追加の動作を指定する。
+negativepは0または1でなければならない。
+negativepが1の場合には、判定結果が反転される。
+(*注 negativepはboolean型であるべきだが、実装では整数型となっている*)
+
+con_query 型は、
+simple_queryの配列である。
+全てのsimple_queryが真のとき、con_queryは真になる。
+
+fss_query 型は、
+con_queryの配列である。
+いずれかのcon_queryが真のとき、fss_queryは真になる。
+
+1.1 定数
+
+WAM::ROW		(* 行 *)
+WAM::COL		(* 列 *)
+WAM::WEIGHT_TYPES
+	使用可能な類似度の名前の一覧
+WAM::CS_TYPES
+	使用可能なクラスタリング手法の名前の一覧
+
+2. 関数
+
+本節では、
+RubyモジュールAPIで定義されている関数について解説する。
+
+表1に、
+関数の一覧を、
+簡略化した記法により示す。
+
+--
+表1
+
+-- class method
+void initialize(string)
+WAM open(string)
+
+-- WAM.method
+void close()
+string id2name(dir_t, fixint)
+fixint name2id(dir_t, string)
+fixint size(dir_t)
+fixint freq_sum(dir_t, fixint)
+fixint max_freq_sum(dir_t)
+fixint total_freq_sum()
+fixint elem_num(dir_t, fixint)
+fixint max_elem_num(dir_t)
+fixint total_elem_num()
+WAM_XR_VEC get_vec(dir_t, fixint)
+WAM_XR_VEC text2vec(string, string)
+SYMINFO_L wsh(SYMINFO_L, dir_t, weight_type_t, fixint, fixint, WAM)
+SYMINFO_L bex_wsh(SYMINFO_L, array of WAM_BXU_ELEM, dir_t, weight_type_t, fixint, fixint, WAM)
+SYMINFO_L fss_wsh(SYMINFO_L, FSS_QUERY, dir_t, weight_type_t, fixint, fixint, WAM)
+array of SYMINFO_L wam_ncsb(SYMINFO_L, cs_type_t, dir_t, weight_type_t, fixint, fixint, fixint)
+string prop_gets(dir_t, string, fixint)
+string fss_gets(dir_t, fixint)
+fixint get_last_nd()
+--
+
+以下、
+個々の関数について順に解説する。
+
+***
+void initialize(string projectroot)
+
+initializeは、WAM モジュールを初期化する。
+projectroot には 
+GETAssoc がインストールされているディレクトリの絶対パス名を指定する。
+projectroot に空文字列が指定された場合は、
+環境変数 GETAROOT の値が使用される。
+
+***
+WAM open(string handle)
+
+ハンドルが handle である WAM をオープンし、
+その識別子 (正の整数) を返す。
+オープン後、
+ユーザはこの識別子を用いて WAM にアクセスすることができる。
+オープンに失敗した場合は nil を返す。
+戻り値はない。
+
+***
+void close()
+
+OBJD に関連付けられた WAM をクローズする。
+戻り値はない。
+
+
+***
+string id2name(dir_t mode, fixint id)
+
+OBJD に関連付けられた WAM のうち、
+mode で指定された側の名前表を引き、
+与えられた id に対応する name を返す。
+対応する name がない場合は空文字列を返す。
+mode には、
+WAM::ROW (行) または WAM::COL (列) を指定する。
+前者では文書名、後者では単語綴りが得られる。
+
+
+***
+fixint name2id(dir_t mode, string name)
+
+OBDJ に関連付けられた WAM のうち、
+mode で指定された側の名前表を引き、
+与えられた name に対応する id を返す。
+対応する id がない場合は 0 を返す。
+mode には、
+WAM::ROW (行) または WAM::COL (列) を指定する。
+前者では文書名に対応するid、後者では単語綴りに対応するidが得られる。
+
+***
+fixint size(dir_t mode)
+
+OBJD に関連付けられた WAM のうち、
+mode で指定された側の要素数を返す。
+mode に WAM::ROW を指定すると WAM の行数を、
+WAM::COL を指定すると WAM の列数を知ることができる。
+前者では文書数、後者では(異なり)単語数が得られる。
+
+
+***
+fixint freq_sum(dir_t mode, fixint id)
+
+OBJD に関連付けられた WAM のうち、
+mode で指定された側 の id ベクタの要素の値の総和を返す。
+存在しない id を与えた場合は -1 を返す。
+mode には、
+WAM::ROW (行) または WAM::COL (列) を指定する。
+
+
+***
+fixint max_freq_sum(dir_t mode)
+
+	== max_i(self.freq_sum( mode, i))
+
+***
+fixint total_freq_sum()
+
+	== sum_i(self.freq_sum(WAM::ROW, i)) == sum_i(self.freq_sum(WAM::COL, i))
+
+***
+fixint elem_num(dir_t mode, fixint id)
+
+OBJD に関連付けられた WAM のうち、
+mode で指定された側の id 行 (列) ベクタ中の 0 でない要素数を返す。
+存在しない id を与えた場合は -1 を返す。
+mode には、
+WAM::ROW (行) または WAM::COL (列) を指定する。
+
+***
+fixint max_elem_num(dir_t mode)
+
+	== max_i(self.elem_num(mode, i))
+
+***
+fixint total_elem_num()
+
+	== sum_i(self.elem_num(WAM::ROW, i)) == sum_i(self.elem_num(WAM::COL, i))
+
+***
+WAM_XR_VEC get_vec(dir_t mode, fixint id)
+
+OBJD に関連付けられた WAM のうち、
+mode で指定された側の id 行 (列) ベクタ を返す。
+戻り値は、
+id、freq の 2 つのインスタンス変数を持つクラスへのリファレンスの配列へのリファレンスである。
+存在しない id が与えられた場合は空文字列を返す。
+mode には、
+WAM::ROW (行) または WAM::COL (列) を指定する。
+
+***
+WAM_XR_VEC text2vec(string text, string stemmer)
+
+与えられた文字列 text を、
+名前が stemmer である形態素解析器で単語に分割する。
+その結果を name であるとして、
+OBJD に関連付けられた WAM のうち、
+列側の対応表を(name2idにより)引き、
+その name に対応する id を割り当てる。
+対応する id がない単語は無視される。
+
+戻り値は、
+id、freq の 2 つのインスタンス変数を持つクラスへのリファレンスの
+配列へのリファレンス (get_vec と同じ形式)である。
+対応する id を持つ単語がひとつもない場合は、
+長さ 0 の配列へのリファレンスが返される。
+freq には、
+その id の計算要求 text 中での出現回数 (TF) がセットされる。
+
+***
+SYMINFO_L wsh(SYMINFO_L r, dir_t mode, weight_type_t wt, fixint maxnd, fixint iwl, WAM d2)
+
+連想計算を行なう。
+入力 r 中のベクタに現れる idを最大 max 個集め、
+その結果を id、TF、TF_d、DF、DF_d、weight、name の 7 つのインスタンス変数を持つクラスへのリファレンスの配列へのリファレンスとして返す(vはセットされない)。
+入力rは、ハッシュのリストであり、各要素がひとつのベクタに対応する。
+各要素はベクトルの指定持つ必要があり、
+また TF_d、weight、TF を持つことができる。
+ベクトルの指定は以下のいずれかである:
+	1. インスタンス変数: v、 値: ベクタ(get_vec で取得したもの、もしくはユーザが構築したものいずれでも可)
+	2. インスタンス変数: name、 値: 記事名もしくは単語綴り
+	3. インスタンス変数: id、 値: 記事名もしくは単語綴りを id2name で id に変換したもの
+複数指定されたときには前のものが優先して扱われる。
+name、またはidのときは、それらに対応する特徴ベクトルをget_vecにより
+OBJDとmodeを参照して取得したものが用いられる。
+TF_d はそのベクトルが計算要求中に現れた回数を指定する。
+省略すると 1 として扱われる。
+weight はそのベクトルの計算要求中での重要度を指定する。
+省略すると 0.0 として扱われる。
+インスタンス変数 TF は予約されている。
+上記以外のインスタンス変数は、通常の類似度は使用しないが、
+類似度によっては特定のインスタンス変数-バリューを要求するものもある。
+
+
+連想計算の結果は、
+類似度 wt を用いて計算された weight の値の高い順に、
+計算結果は、高々maxnd個だけ集められ配列に格納される
+(格納順もweight の高い順)。
+使用可能な類似度のリストは定数 WAM::WEIGHT_TYPES にセットされている。
+計算要求 r が行 id の場合は mode に WAM::ROW (行) を指定し、
+列 id の場合は WAM::COL (列) を指定する。
+なお、maxndに無限大を指定した場合に得られるはずの結果の数(潜在的な
+結果の数)は、
+get_last_ndで取得することができる。
+
+
+iwl に正の整数を指定すると、
+計算結果 r 中で、
+識別子 d2に関連付けられた WAM における DF 値が limit より大きいものが
+計算結果から除外される。
+(0 を指定すると計算要求中のすべての id を連想計算に使用する。
+この値を適切に設定することで、
+この連想計算の結果を用いた次段の連想計算の結果が膨大な数になるのを防ぐために
+用いる。)
+
+計算要求 r が単語リストの場合は結果として文書リストが得られ、
+文書リストの場合は単語リストが得られる。
+
+***
+SYMINFO_L bex_wsh(SYMINFO_L r, array of WAM_BXU_ELEM b, dir_t mode, weight_type_t wt, fixint maxnd, fixint iwl, WAM d2)
+
+wshb は wsh の ブーリアンフィルタ付き版である。
+b にブール式を渡すことで、
+wshの結果を b でマスクした結果が得られる。
+
+***
+SYMINFO_L fss_wsh(SYMINFO_L r, FSS_QUERY f, dir_t mode, weight_type_t wt, fixint maxnd, fixint iwl, WAM d2)
+
+wshf は wsh の 全文一致検索フィルタ付き版である。
+f に全文一致検索式を渡すことで、
+wshの結果を b でマスクした結果が得られる。
+
+***
+array of SYMINFO_L ncsb(SYMINFO_L s, cs_type_t ct, dir_t mode, weight_type_t wt, fixint elemn, fixint cno, fixint fwt)
+
+クラスタリングを行う。
+sを ct という手法で自動的に分類し、
+cno個のクラスタ(グループ)に分ける。
+結果は、cno個の配列の配列である。
+ncsbは、
+クラスタリングを行う際には、
+クラスタの特徴として、
+通常の特徴ベクトルからいったんwtによって
+重み付きベクトルに変換し、
+その上位elemn個だけの部分ベクトルを初期クラスタの特徴ベクトルとする。
+
+/* 
+クラスタリング完了後、
+ncsbは、
+各クラスタごとに、
+そのクラスタを入力とする重みをwtとした連想計算により、
+cswmax個の特徴語を内部的に計算する。
+この計算結果はこの関数からは返されない。
+*/
+
+***
+string prop_gets(dir_t mode, string basename, fixint id)
+
+OBJD に関連付けられた WAM に属する mode の方向の補助ファイ
+ル basename (タイトルファイルなど) をアクセスし、
+与えられた id に対応する値を返す。
+失敗した場合はnilを返す。
+
+***
+string fss_gets(dir_t id, fixint segid)
+
+OBJD に関連付けられた WAM に属する全文一致ファイルをアクセスし、
+与えられた文書 id の セグメント segid を返す。
+失敗した場合は空文字列を返す。
+(全文一致は、文書側しか定義されていない)
+
+***
+fixint get_last_nd()
+
+wsh または wsa で連想計算された文書の総数を返す。
+
+
+3. その他
+
+wshでは、
+cookie を指定することができるが、
+wsh ではできない(内部的には NULL で固定)。
+assvおよびxfssの呼び出しは実装されていない。
+get_last_ndは設計が極めて美しくなく、改善の余地がある。

@@ -1,0 +1,10 @@
+PREREQUISTES:
+	ruby19
+
+PROCEDURE:
+	vi cf
+	./cf
+	./cnf
+	make
+	sudo make install
+	./sample.rb

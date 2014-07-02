@@ -1,0 +1,334 @@
+#! @PROG_RUBY@ -Ku
+
+require 'rnwam'
+
+def main
+	test
+end
+
+def test
+	dirname = "@NWAMDATADIR@/nwam/"
+	handle = "mai2001"
+
+	ttli = "title"
+	text = "白珠者人尓不所知不知友縦雖不知吾之知有者不知友任意"
+	stemmer = "default"
+
+	w = WAM.open(dirname + handle)
+
+	if (w == nil) then exit end
+
+	rsize = w.size(WAM::ROW)
+	print "size(row): " + rsize.to_s + "\n"
+	csize = w.size(WAM::COL)
+	print "size(col): " + csize.to_s + "\n"
+
+	num_test(w, "WAM::ROW", 0)
+	num_test(w, "WAM::ROW", 1)
+	num_test(w, "WAM::ROW", rsize)
+	num_test(w, "WAM::ROW", rsize + 1)
+	num_test(w, "WAM::COL", 0)
+	num_test(w, "WAM::COL", 1)
+	num_test(w, "WAM::COL", csize)
+	num_test(w, "WAM::COL", csize + 1)
+
+	mt_test(w, "max_elem_num", "WAM::ROW")
+	mt_test(w, "max_freq_sum", "WAM::ROW")
+	mt_test_0(w, "total_elem_num")
+	mt_test_0(w, "total_freq_sum")
+	mt_test(w, "max_elem_num", "WAM::COL")
+	mt_test(w, "max_freq_sum", "WAM::COL")
+	mt_test_0(w, "total_elem_num")
+	mt_test_0(w, "total_freq_sum")
+
+	idname_test(w, "WAM::ROW", 0)
+	idname_test(w, "WAM::ROW", 1)
+	idname_test(w, "WAM::ROW", rsize)
+	idname_test(w, "WAM::ROW", rsize + 1)
+	idname_test(w, "WAM::COL", 0)
+	idname_test(w, "WAM::COL", 1)
+	idname_test(w, "WAM::COL", csize)
+	idname_test(w, "WAM::COL", csize + 1)
+
+	gv_test(w, "WAM::ROW", 0)
+	gv_test(w, "WAM::ROW", 1)
+	gv_test(w, "WAM::ROW", 2)
+	gv_test(w, "WAM::ROW", 3)
+	gv_test(w, "WAM::ROW", rsize)
+	gv_test(w, "WAM::ROW", rsize + 1)
+
+	gv_test(w, "WAM::COL", 0)
+	gv_test(w, "WAM::COL", 1)
+	gv_test(w, "WAM::COL", 2)
+	gv_test(w, "WAM::COL", 3)
+	gv_test(w, "WAM::COL", rsize)
+	gv_test(w, "WAM::COL", rsize + 1)
+
+	asso_test(w)
+	clst_test(w)
+
+	au_test(w, ttli, 0)
+	au_test(w, ttli, 1)
+	au_test(w, ttli, rsize)
+	au_test(w, ttli, rsize + 1)
+
+	fs_test(w, 1, 0)
+
+	v = w.text2vec(text, stemmer)
+	print "text2vec = " + print_vec(v, 8, w, WAM::COL) + "\n"
+
+	print "weight_types = " + WAM::WEIGHT_TYPES.to_s + "\n"
+	print "cs_types = " + WAM::CS_TYPES.to_s + "\n"
+
+	w.close
+end
+
+def num_test(w, d, i)
+	dir = (eval d)
+	e = w.elem_num(dir, i)
+	f = w.freq_sum(dir, i)
+	print "elem_num(" + d + ")[" + i.to_s + "] = " + (e != nil ? e.to_s : "*") + "\n"
+	print "freq_sum(" + d + ")[" + i.to_s + "] = " + (f != nil ? e.to_s : "*") + "\n"
+end
+
+def mt_test(w, f, d)
+	v = (eval "w." + f + "(" + d + ")")
+	print f + "(" + d + ") = " + v.to_s + "\n"
+end
+
+def mt_test_0(w, f)
+	v = (eval "w." + f)
+	print f + "(*) = " + v.to_s + "\n"
+end
+
+def idname_test(w, d, i)
+	dir = (eval d)
+	p = w.id2name(dir, i)
+	print "id2name(" + d + ", " + i.to_s + ") = " + (p != nil ? p : "(null)") + "\n"
+	j = p != nil ? w.name2id(dir, p) : "*"
+	print "name2id(" + d + ", " + (p != nil ? p : "*") + ") = " + j.to_s + "\n"
+end
+
+def gv_test(w, d, i)
+	dir = (eval d)
+	n = w.id2name(dir, i)
+	v = w.get_vec(dir, i)
+	rdir = (dir == WAM::ROW ? WAM::COL : WAM::ROW)
+	print "get_vec(\"" + (n != nil ? n : "*") + "\") = " + print_vec(v, 8, w, rdir) + "\n"
+end
+
+def asso_test(w)
+
+	q = [
+		se("mai2001.００００００１０", 0, nil, 1, 1, 0, 0, 0.0),
+		se(nil, 2, nil, 1, 1, 0, 0, 0.0),
+		se(nil, 3, nil, 1, 1, 0, 0, 0.0)
+	]
+
+	x = [
+		se("4000", 0, nil, 1, 1, 0, 0, 0.0),
+		se(nil, 2, nil, 1, 1, 0, 0, 0.0),
+		se(nil, 3, nil, 1, 1, 0, 0, 0.0),
+		se(nil, 1, nil, 1, 1, 0, 0, 0.0)
+	]
+
+	v1 = xv([
+		ee(2, 1),
+		ee(4, 1),
+		ee(1, 1)	# "mai2001.００００００１０"
+	])
+
+	v2 = xv([
+		ee(3, 1)
+	])
+
+	y = [
+		se(nil, 0, v1, 1, 1, 0, 0, 0.0),
+		se(nil, 0, v2, 1, 1, 0, 0, 0.0),
+	]
+
+#### NOTE: use nil to mark the field empty
+	b = [
+		be("日本", nil, nil),	# {id => 63},
+		be(nil, nil, 38),	# '&'
+		be(nil, 8, nil)
+	]
+
+	f0 = [
+		fe("東京", 1, "ignore-case", "0"),
+		fe("カンボジア", 0, "", "0")
+	]
+
+	f = [f0]
+
+	dir = WAM::ROW
+	type = WAM::WT_SMARTAW
+	nd = 8
+	d = w.wsh(q, dir, type, nd, 0, nil)
+	total = w.get_last_nd()
+	print "smartaw>: " + print_syminfo(d, total, 0, w, WAM::COL) + "\n"
+
+	dir = WAM::COL
+	type = WAM::WT_SMARTWA
+	nd = 16
+	r = w.wsh(d, dir, type, nd, 0, nil)
+	total = w.get_last_nd()
+	print "smartwa>: " + print_syminfo(r, total, 0, w, WAM::ROW) + "\n"
+
+	dir = WAM::COL
+	type = WAM::WT_SMARTWA
+	nd = 16
+	r = w.bex_wsh(x, b, dir, type, nd, 0, nil)
+	total = w.get_last_nd()
+	print "smartwa+bool>: " + print_syminfo(r, total, 0, w, WAM::ROW) + "\n"
+
+	dir = WAM::COL
+	type = WAM::WT_SMARTWA
+	nd = 16
+	r = w.fss_wsh(x, f, dir, type, nd, 0, nil)
+	total = w.get_last_nd()
+	print "fx>: " + print_syminfo(r, total, 0, w, WAM::ROW) + "\n"
+
+	dir = WAM::COL
+	type = WAM::WT_COSINE_TFIDF
+	nd = 16
+	r = w.wsh(y, dir, type, nd, 0, nil)
+	total = w.get_last_nd()
+	print "cos_tfidf>: " + print_syminfo(r, total, total, w, WAM::ROW) + "\n"
+
+end
+
+def clst_test(w)
+	q = [
+		se("mai2001.００００００１０", 0, nil, 1, 1, 0, 0, 0.0),
+		se(nil, 2, nil, 1, 1, 0, 0, 0.0),
+		se(nil, 3, nil, 1, 1, 0, 0, 0.0),
+		se(nil, 4, nil, 1, 1, 0, 0, 0.0),
+		se(nil, 5, nil, 1, 1, 0, 0, 0.0),
+		se(nil, 6, nil, 1, 1, 0, 0, 0.0),
+		se(nil, 7, nil, 1, 1, 0, 0, 0.0)
+	];
+
+	dir = WAM::ROW;
+	type = WAM::WT_SMARTAW;
+	elemn = 256;
+	cno = 3;
+	cswmax = 8;
+	cs_type = WAM::CS_HBC;
+	d = w.ncsb(q, cs_type, dir, type, elemn, cno, cswmax);
+	d.each do |r|
+		print "ncsb>: " + print_syminfo(r, 0, 0, $w, WAM::ROW) + "\n"
+	end
+end
+
+def au_test(w, k, i)
+	p = w.prop_gets(WAM::ROW, k, i)
+	print "prop_gets(" + k + ", " + i.to_s + ") = " + (p != nil ? p : "(null)") + "\n"
+end
+
+def fs_test(w, i, s)
+	p = w.fss_gets(i, s)
+	print "fss_gets(" + i.to_s + ", " + s.to_s + ") = " + (p != nil ? p : "(null)") + "\n"
+end
+
+def print_vec(v, l, w, dir)
+	if (v == nil)
+		return "nil"
+	end
+	r = v.elems.length.to_s + ", {" + v.elem_num.to_s + ", " + v.freq_sum.to_s + "}, "
+	if (v != nil)
+		sep = ""
+		(l == 0 ? v.elems : v.elems[0,l]).each do |e|
+			r += sep
+			r += pe(e, w, dir)
+			sep = ", "
+		end
+	end
+	if (l != 0 && v.elems.length > l)
+		r += ", ..."
+	end
+	return r
+end
+
+def pe(e, w, dir)
+	return "[\"" + w.id2name(dir, e.id) + "\", " + e.freq.to_s + "]"
+end
+
+def xv(elems)
+	v = WAM_XR_VEC.new()
+	v.elems = elems
+	v.elem_num = elems.length
+	sum = 0
+	elems.each do |e|
+		sum += e.freq
+	end
+	v.freq_sum = sum
+	return v
+end
+
+def ee(id, freq)
+	v = WAM_XR_ELEM.new()
+	v.id = id
+	v.freq = freq
+	return v
+end
+
+def be(name, id, type)
+	v = WAM_BXU_ELEM.new()
+	v.name = name
+	v.id = id
+	v.type = type
+	return v
+end
+
+def print_syminfo(v, total, l, w, dir)
+	if (v == nil)
+		return "nil"
+	end
+	r = v.length.to_s + ", " + total.to_s + ", "
+	if (v != nil)
+		sep = ""
+		(l == 0 ? v : v[0,l]).each do |e|
+			r += sep
+			r += ps(e, w, dir)
+			sep = ", "
+		end
+	end
+	if (l != 0 && v.length > l)
+		r += ", ..."
+	end
+	return r
+end
+
+def ps(e, w, dir)
+	return "[" + e.id.to_s +
+		", " + (e.name == nil ? "(null)" : "\"" + e.name.to_s + "\"") +
+		", " + e.TF.to_s + ", " + e.TF_d.to_s +
+		", " + e.DF.to_s + ", " + e.DF_d.to_s +
+		", " + e.weight.to_s +
+		", " + print_vec(e.v, 0, w, dir) + "]"
+end
+
+def se(name, id, vec, tf, tf_d, df, df_d, weight)
+	v = WAM_SYMINFO_ELEM.new()
+	v.name = name
+	v.id = id
+	v.v = vec
+	v.TF = tf
+	v.TF_d = tf_d
+	v.DF = df
+	v.DF_d = df_d
+	v.weight = weight
+	return v
+end
+
+def fe(pattern, negativep, options, segments)
+	v = WAM_SIMPLE_QUERY.new()
+	v.pattern = pattern
+	v.negativep = negativep
+	v.options = options
+	v.segments = segments
+	return v
+end
+
+main

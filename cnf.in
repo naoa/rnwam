@@ -1,0 +1,4 @@
+#! /bin/sh -x
+@PROG_RUBY@ ./extconf.rb "$@" \
+	--with-nwam-include=@NWAMPREFIX@/include/getassoc \
+	--with-nwam-lib=@NWAMPREFIX@/lib

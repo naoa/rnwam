@@ -1,0 +1,7 @@
+#! @PROG_RUBY@
+require 'mkmf'
+dir_config('nwam')
+$libs=`@ICUCONFIG@ --ldflags`.chomp + " -lexpat"
+if have_header('nwam.h') and have_library('nwam', 'wam_init')
+	create_makefile('rnwam')
+end

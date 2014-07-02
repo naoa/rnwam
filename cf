@@ -1,0 +1,13 @@
+#! /bin/sh
+
+rnwam() {
+	./configure \
+		--prefix=/usr/pkg \
+		--with-icu-config=/usr/pkg/bin/icu-config \
+		--with-nwam-prefix=/usr/pkg \
+		--with-nwam-datadir=/var/users/gss3/g \
+		"$@"
+}
+
+wd=`pwd`
+`basename $wd|sed 's/[^a-zA-Z0-9]/_/g'` "$@"
